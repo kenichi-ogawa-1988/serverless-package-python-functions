@@ -33,6 +33,7 @@ class PkgPyFuncs {
     this.dockerImage = config.dockerImage || `lambci/lambda:build-${this.serverless.service.provider.runtime}`
     this.containerName = config.containerName || 'serverless-package-python-functions'
     this.dockerServicePath = '/var/task'
+    this.ignorePipVersionCheck = config.ignorePipVersionCheck || false;
   }
 
   clean(){
@@ -85,6 +86,9 @@ class PkgPyFuncs {
     }
 
     args = [...args, upath.normalize(requirementsPath)]
+    if (this.ignorePipVersionCheck) {
+      args.push('--disable-pip-version-check')
+    }
     return this.runProcess(cmd, args)
   }
 

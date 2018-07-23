@@ -153,6 +153,7 @@ class PkgPyFuncs {
     const requirePackages = target.requirePackages;
 
     // Create package directory and package files
+    Fse.removeSync(buildPath)
     Fse.ensureDirSync(buildPath)
 
     // Write require package to <function folder>/requirements.txt

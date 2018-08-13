@@ -58,7 +58,9 @@ class PkgPyFuncs {
       return {
         name: target.name,
         requirePackages: target.requirePackages,
-        includes: target.package.include
+        includes: target.package.include,
+        excludes: target.package.exclude,
+        skip: target.skipPkgPyFuncs
       }
     })
     return info
@@ -151,13 +153,15 @@ class PkgPyFuncs {
     const buildPath = Path.join(this.buildDir, target.name)
     const requirementsPath = Path.join(buildPath, this.requirementsFile)
     const requirePackages = target.requirePackages;
+    const excludes = target.excludes || [];
+    const skip = target.skip;
 
     // Create package directory and package files
     Fse.removeSync(buildPath)
     Fse.ensureDirSync(buildPath)
 
     // Write require package to <function folder>/requirements.txt
-    if(requirePackages && requirePackages.length > 0) {
+    if(!skip && requirePackages && requirePackages.length > 0) {
       Fse.writeFileSync(buildPath + '/requirements.txt', '')
       requirePackages.forEach(x => {
         Fse.appendFileSync(buildPath + '/requirements.txt', x + '\n')
@@ -173,7 +177,14 @@ class PkgPyFuncs {
     // Global Includes
     if(this.globalIncludes && this.globalIncludes.length > 0) {
       this.log("Add Global Includes...")
-      _.forEach(this.globalIncludes, (item) => {
+      _.filter(this.globalIncludes, item => {
+        if (excludes.includes(item)) {
+          this.log(`  Exclude item: ${item}`)
+          return false;
+        } else {
+          return true;
+        }
+      }).forEach(item => {
         Fse.copySync(item, Path.resolve(buildPath, item))
       })
     }
@@ -182,21 +193,23 @@ class PkgPyFuncs {
     this.log("Add Functions Includes...")
     _.forEach(includes, (item) => {
       if(Fse.lstatSync(Path.resolve(item)).isDirectory()) {
-        Fse.copySync(item, Path.resolve(buildPath)) 
+        Fse.copySync(item, Path.resolve(buildPath))
       } else {
-        Fse.copySync(item, Path.resolve(buildPath, item)) 
+        Fse.copySync(item, Path.resolve(buildPath, item))
       }
     })
 
     // Install requirements
-    let requirements = [requirementsPath]
-    if (this.globalRequirements) {
-      requirements = _.concat(requirements, this.globalRequirements)
+    if (!skip) {
+      let requirements = [requirementsPath]
+      if (this.globalRequirements) {
+        requirements = _.concat(requirements, this.globalRequirements)
+      }
+      _.forEach(requirements, (req) => {
+        this.installRequirements(buildPath, req)
+      })
     }
 
-    _.forEach(requirements, (req) => {
-      this.installRequirements(buildPath, req)
-    })
     zipper.sync.zip(buildPath).compress().save(`${buildPath}.zip`)
   }
 
